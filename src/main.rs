@@ -136,16 +136,15 @@ fn main() {
     let snap2_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 25.];
     let snap2_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 5., 5., 0.];
 
-    let snap1_score: f32 = ss_s
-        .zip(snap1_trust.zip(snap1_distrust))
-        .iter()
-        .fold(0., |acc, (s, (t, d))| 0.);
+    let num1: f32 = snap1_trust.iter().sum();
+    let den1 = snap1_trust.iter().sum::<f32>() + snap1_distrust.iter().sum::<f32>();
+    let snap1_score: f32 = num1 / den1;
 
-    let snap2_score: f32 = ss_s
-        .zip(snap2_trust.zip(snap2_distrust))
-        .iter()
-        .fold(0., |acc, (s, (t, d))| 0.);
+    let num2: f32 = snap2_trust.iter().sum();
+    let den2 = snap2_trust.iter().sum::<f32>() + snap2_distrust.iter().sum::<f32>();
+    let snap2_score: f32 = num2 / den2;
 
+    println!("");
     println!("snap1 score: {}", snap1_score);
     println!("snap2 score: {}", snap2_score);
 }
