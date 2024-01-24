@@ -90,51 +90,51 @@ fn negative_run(
 fn main() {
     let pre_trust: [f32; NUM_NEIGHBOURS] = [0.0, 0.0, 0.0, 0.7, 0.3];
 
-    let lt_sd: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
-        [0.0, 0.0, 0.5, 0.0, 0.0], // - Peer 0 opinions
-        [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 1 opinions
-        [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 2 opinions
-        [5.5, 0.0, 0.0, 0.0, 0.0], // - Peer 3 opinions
-        [0.0, 5.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
-    ];
-
-    let sd_s = positive_run("Software Development".to_string(), lt_sd, pre_trust);
-
-    let ld_sd: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
-        [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 0 opinions
-        [0.0, 0.0, 5.0, 0.0, 0.0], // - Peer 1 opinions
-        [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 2 opinions
-        [0.0, 0.5, 0.0, 0.0, 0.0], // - Peer 3 opinions
-        [5.0, 0.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
-    ];
-
-    negative_run("Software Development".to_string(), ld_sd, pre_trust, sd_s);
-
     let lt_ss: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
-        [0.0, 0.0, 0.5, 0.0, 0.0], // - Peer 0 opinions
+        [0.0, 0.0, 1.0, 0.0, 0.0], // - Peer 0 opinions
         [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 1 opinions
         [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 2 opinions
-        [0.5, 0.0, 0.0, 0.0, 0.0], // - Peer 3 opinions
-        [0.0, 0.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
+        [11., 0.0, 0.0, 0.0, 0.0], // - Peer 3 opinions
+        [0.0, 10., 0.0, 0.0, 0.0], // = Peer 4 opinions
     ];
 
     let ss_s = positive_run("Software Security".to_string(), lt_ss, pre_trust);
 
     let ld_ss: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
         [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 0 opinions
-        [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 1 opinions
+        [0.0, 0.0, 10., 0.0, 0.0], // - Peer 1 opinions
         [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 2 opinions
-        [0.0, 0.5, 0.0, 0.0, 0.0], // - Peer 3 opinions
-        [0.0, 0.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
+        [0.0, 1.0, 0.0, 0.0, 0.0], // - Peer 3 opinions
+        [10., 0.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
     ];
 
     negative_run("Software Security".to_string(), ld_ss, pre_trust, ss_s);
 
-    let snap1_trust: [f32; NUM_NEIGHBOURS] = [25., 0., 0., 25., 0.];
-    let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 5., 0., 0.];
+    let lt_sd: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
+        [0.0, 0.0, 1.0, 0.0, 0.0], // - Peer 0 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 1 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 2 opinions
+        [1.0, 0.0, 0.0, 0.0, 0.0], // - Peer 3 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
+    ];
 
-    let snap2_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 25.];
-    let snap2_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 5., 5., 0.];
+    let sd_s = positive_run("Software Development".to_string(), lt_sd, pre_trust);
+
+    let ld_sd: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
+        [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 0 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 1 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 2 opinions
+        [0.0, 1.0, 0.0, 0.0, 0.0], // - Peer 3 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
+    ];
+
+    negative_run("Software Development".to_string(), ld_sd, pre_trust, sd_s);
+
+    let snap1_trust: [f32; NUM_NEIGHBOURS] = [50., 0., 0., 50., 0.];
+    let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 0., 0.];
+
+    let snap2_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 50.];
+    let snap2_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 50., 0.];
 
     let num1: f32 = snap1_trust.iter().sum();
     let den1 = snap1_trust.iter().sum::<f32>() + snap1_distrust.iter().sum::<f32>();
