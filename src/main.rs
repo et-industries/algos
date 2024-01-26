@@ -53,8 +53,6 @@ fn positive_run(
         }
 
         s = new_s;
-
-        // println!("[{}]", s.map(|v| format!("{:>9.4}", v)).join(", "));
     }
     println!("end: [{}]", s.map(|v| format!("{:>9.4}", v)).join(", "));
 
@@ -87,7 +85,7 @@ fn negative_run(
     new_s
 }
 
-fn main() {
+fn functional_case() {
     let pre_trust: [f32; NUM_NEIGHBOURS] = [0.0, 0.0, 0.0, 0.7, 0.3];
 
     let lt_ss: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
@@ -136,9 +134,17 @@ fn main() {
     let snap2_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 50.];
     let snap2_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 50., 0.];
 
-    let num1: f32 = snap1_trust.iter().sum();
-    let den1 = snap1_trust.iter().sum::<f32>() + snap1_distrust.iter().sum::<f32>();
-    let snap1_score: f32 = num1 / den1;
+    let num1: f32 = snap1_trust
+        .zip(ss_s)
+        .map(|(x, y)| if x == 50. { y } else { 0. })
+        .iter()
+        .sum();
+    let den1: f32 = snap1_distrust
+        .zip(ss_s)
+        .map(|(x, y)| if x == 50. { y } else { 0. })
+        .iter()
+        .sum();
+    let snap1_score: f32 = num1 / num1 + den1;
 
     let num2: f32 = snap2_trust.iter().sum();
     let den2 = snap2_trust.iter().sum::<f32>() + snap2_distrust.iter().sum::<f32>();
@@ -147,4 +153,58 @@ fn main() {
     println!("");
     println!("snap1 score: {}", snap1_score);
     println!("snap2 score: {}", snap2_score);
+}
+
+fn sybil_case() {
+    let pre_trust: [f32; NUM_NEIGHBOURS] = [0.0, 0.0, 0.0, 0.7, 0.3];
+
+    let lt_ss: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
+        [0.0, 10.0, 10.0, 0.0, 0.0], // - Peer 0 opinions
+        [10.0, 0.0, 10.0, 0.0, 0.0], // - Peer 1 opinions
+        [10.0, 10.0, 0.0, 0.0, 0.0], // - Peer 2 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0],   // - Peer 3 opinions
+        [0.0, 10., 0.0, 0.0, 0.0],   // = Peer 4 opinions
+    ];
+
+    let ss_s = positive_run("Software Security".to_string(), lt_ss, pre_trust);
+
+    let ld_ss: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
+        [0.0, 0.0, 0.0, 10.0, 0.0],   // - Peer 0 opinions
+        [0.0, 0.0, 0.0, 10.0, 0.0],   // - Peer 1 opinions
+        [0.0, 0.0, 0.0, 10.0, 0.0],   // - Peer 2 opinions
+        [10.0, 10.0, 10.0, 0.0, 0.0], // - Peer 3 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0],    // = Peer 4 opinions
+    ];
+
+    negative_run("Software Security".to_string(), ld_ss, pre_trust, ss_s);
+
+    let snap1_trust: [f32; NUM_NEIGHBOURS] = [50., 50., 50., 0., 0.];
+    let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 50., 50.];
+
+    let snap2_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 50., 50.];
+    let snap2_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
+
+    let num1: f32 = snap1_trust
+        .zip(ss_s)
+        .map(|(x, y)| if x == 50. { y } else { 0. })
+        .iter()
+        .sum();
+    let den1: f32 = snap1_distrust
+        .zip(ss_s)
+        .map(|(x, y)| if x == 50. { y } else { 0. })
+        .iter()
+        .sum();
+    let snap1_score: f32 = num1 / num1 + den1;
+
+    let num2: f32 = snap2_trust.iter().sum();
+    let den2 = snap2_trust.iter().sum::<f32>() + snap2_distrust.iter().sum::<f32>();
+    let snap2_score: f32 = num2 / den2;
+
+    println!("");
+    println!("snap1 score: {}", snap1_score);
+    println!("snap2 score: {}", snap2_score);
+}
+
+fn main() {
+    sybil_case();
 }
