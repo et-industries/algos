@@ -2,6 +2,9 @@ const NUM_NEIGHBOURS: usize = 5;
 const NUM_ITER: usize = 30;
 const PRE_TRUST_WEIGHT: f32 = 0.3;
 
+const CONFIDENCE_THRESHOLD: f32 = 0.3;
+const SECURE_THRESHOLD: f32 = 0.7;
+
 fn validate_lt(lt: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS]) {
     // Compute sum of incoming distrust
     for i in 0..NUM_NEIGHBOURS {
@@ -48,6 +51,86 @@ fn transpose(
         }
     }
     new_s
+}
+
+fn calculate_snap_score(
+    st: [f32; NUM_NEIGHBOURS],
+    sd: [f32; NUM_NEIGHBOURS],
+    s: [f32; NUM_NEIGHBOURS],
+) -> f32 {
+    let num: f32 = st
+        .iter()
+        .zip(s)
+        .map(|(x, y)| if *x == 50. { y } else { 0. })
+        .sum();
+    let den: f32 = sd
+        .iter()
+        .zip(s)
+        .map(|(x, y)| if *x == 50. { y } else { 0. })
+        .sum();
+    let snap_score: f32 = num / (num + den);
+
+    let score = if snap_score.is_nan() { 0. } else { snap_score };
+
+    score
+}
+
+#[derive(Debug)]
+enum State {
+    Reported,
+    Contested,
+    Endorsed,
+    Unverified,
+}
+
+fn calculate_snap_score_with_threshold(
+    st: [f32; NUM_NEIGHBOURS],
+    sd: [f32; NUM_NEIGHBOURS],
+    s: [f32; NUM_NEIGHBOURS],
+    threshold: f32,
+) -> (f32, f32, State) {
+    let num: f32 = st
+        .iter()
+        .zip(s)
+        .map(|(x, y)| if *x == 50. { y } else { 0. })
+        .sum();
+    let den: f32 = sd
+        .iter()
+        .zip(s)
+        .map(|(x, y)| if *x == 50. { y } else { 0. })
+        .sum();
+    let snap_score: f32 = num / (num + den);
+
+    let score = if snap_score.is_nan() { 0. } else { snap_score };
+    let confidence = num + den;
+
+    let upper_threshold = 1. - threshold;
+    let state = match (score, confidence) {
+        (s, c) if c <= threshold => State::Unverified,
+        (s, c) if c > threshold && s <= threshold => State::Reported,
+        (s, c) if c > threshold && s > threshold && s <= upper_threshold => State::Contested,
+        (s, c) if c > threshold && s > upper_threshold => State::Endorsed,
+        (_, _) => State::Unverified,
+    };
+
+    (score, confidence, state)
+}
+
+// Calculate threshold
+fn calculate_snap_score_threshold(pre_trust: [f32; NUM_NEIGHBOURS]) -> f32 {
+    let non_zero = pre_trust
+        .into_iter()
+        .filter(|x| *x != 0.)
+        .collect::<Vec<f32>>();
+
+    let mut min = f32::MAX;
+    non_zero.into_iter().for_each(|x| {
+        if x < min {
+            min = x;
+        }
+    });
+
+    min
 }
 
 fn positive_run(
@@ -162,29 +245,8 @@ fn functional_case() {
     let snap2_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 50.];
     let snap2_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 50., 0.];
 
-    let num1: f32 = snap1_trust
-        .iter()
-        .zip(ss_s)
-        .map(|(x, y)| if *x == 50. { y } else { 0. })
-        .sum();
-    let den1: f32 = snap1_distrust
-        .iter()
-        .zip(ss_s)
-        .map(|(x, y)| if *x == 50. { y } else { 0. })
-        .sum();
-    let snap1_score: f32 = num1 / num1 + den1;
-
-    let num2: f32 = snap2_trust
-        .iter()
-        .zip(ss_s)
-        .map(|(x, y)| if *x == 50. { y } else { 0. })
-        .sum();
-    let den2: f32 = snap2_distrust
-        .iter()
-        .zip(ss_s)
-        .map(|(x, y)| if *x == 50. { y } else { 0. })
-        .sum();
-    let snap2_score: f32 = num2 / num2 + den2;
+    let snap1_score = calculate_snap_score(snap1_trust, snap1_distrust, ss_s);
+    let snap2_score = calculate_snap_score(snap2_trust, snap2_distrust, ss_s);
 
     println!("");
     println!("snap1 score: {}", snap1_score);
@@ -220,35 +282,106 @@ fn sybil_case() {
     let snap2_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 50., 50.];
     let snap2_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
 
-    let num1: f32 = snap1_trust
-        .iter()
-        .zip(ss_s)
-        .map(|(x, y)| if *x == 50. { y } else { 0. })
-        .sum();
-    let den1: f32 = snap1_distrust
-        .iter()
-        .zip(ss_s)
-        .map(|(x, y)| if *x == 50. { y } else { 0. })
-        .sum();
-    let snap1_score: f32 = num1 / num1 + den1;
-
-    let num2: f32 = snap2_trust
-        .iter()
-        .zip(ss_s)
-        .map(|(x, y)| if *x == 50. { y } else { 0. })
-        .sum();
-    let den2: f32 = snap2_distrust
-        .iter()
-        .zip(ss_s)
-        .map(|(x, y)| if *x == 50. { y } else { 0. })
-        .sum();
-    let snap2_score: f32 = num2 / num2 + den2;
+    let snap1_score = calculate_snap_score(snap1_trust, snap1_distrust, ss_s);
+    let snap2_score = calculate_snap_score(snap2_trust, snap2_distrust, ss_s);
 
     println!("");
     println!("snap1 score: {}", snap1_score);
     println!("snap2 score: {}", snap2_score);
 }
 
+fn sleeping_agent_case() {
+    let pre_trust: [f32; NUM_NEIGHBOURS] = [0.0, 0.0, 0.0, 0.7, 0.3];
+    let snap_threshold = calculate_snap_score_threshold(pre_trust);
+    println!("security_threshold: {}", snap_threshold);
+
+    let lt_ss: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
+        [0.0, 0.0, 0.0, 0.0, 0.0],   // - Peer 0 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0],   // - Peer 1 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0],   // - Peer 2 opinions
+        [0.0, 0.0, 10.0, 0.0, 10.0], // - Peer 3 opinions
+        [0.0, 0.0, 10.0, 10.0, 0.0], // = Peer 4 opinions
+    ];
+
+    let ss_s = positive_run("Software Security".to_string(), lt_ss, pre_trust);
+
+    let ld_ss: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
+        [0.0, 0.0, 0.0, 0.0, 0.0],   // - Peer 0 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0],   // - Peer 1 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0],   // - Peer 2 opinions
+        [10.0, 10.0, 0.0, 0.0, 0.0], // - Peer 3 opinions
+        [10.0, 10.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
+    ];
+
+    negative_run("Software Security".to_string(), ld_ss, pre_trust, ss_s);
+
+    let snap1_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
+    let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
+
+    let snap2_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 50., 50.];
+    let snap2_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
+
+    let (snap1_score, confidence1, state1) =
+        calculate_snap_score_with_threshold(snap1_trust, snap1_distrust, ss_s, snap_threshold);
+    let (snap2_score, confidence2, state2) =
+        calculate_snap_score_with_threshold(snap2_trust, snap2_distrust, ss_s, snap_threshold);
+
+    println!("");
+    println!("1st Round");
+    println!(
+        "snap1 score: {}, confidence: {}, state: {:?}",
+        snap1_score, confidence1, state1
+    );
+    println!(
+        "snap2 score: {}, confidence: {}, state: {:?}",
+        snap2_score, confidence2, state2
+    );
+
+    let snap1_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 0., 0.];
+    let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
+
+    let snap2_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 50., 50.];
+    let snap2_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 0., 0.];
+
+    let (snap1_score, confidence1, state1) =
+        calculate_snap_score_with_threshold(snap1_trust, snap1_distrust, ss_s, snap_threshold);
+    let (snap2_score, confidence2, state2) =
+        calculate_snap_score_with_threshold(snap2_trust, snap2_distrust, ss_s, snap_threshold);
+
+    println!("");
+    println!("2nd Round");
+    println!(
+        "snap1 score: {}, confidence: {}, state: {:?}",
+        snap1_score, confidence1, state1
+    );
+    println!(
+        "snap2 score: {}, confidence: {}, state: {:?}",
+        snap2_score, confidence2, state2
+    );
+
+    let snap1_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 0., 0.];
+    let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 50., 50.];
+
+    let snap2_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 50., 50.];
+    let snap2_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 0., 0.];
+
+    let (snap1_score, confidence1, state1) =
+        calculate_snap_score_with_threshold(snap1_trust, snap1_distrust, ss_s, snap_threshold);
+    let (snap2_score, confidence2, state2) =
+        calculate_snap_score_with_threshold(snap2_trust, snap2_distrust, ss_s, snap_threshold);
+
+    println!("");
+    println!("3rd Round");
+    println!(
+        "snap1 score: {}, confidence: {}, state: {:?}",
+        snap1_score, confidence1, state1
+    );
+    println!(
+        "snap2 score: {}, confidence: {}, state: {:?}",
+        snap2_score, confidence2, state2
+    );
+}
+
 fn main() {
-    functional_case();
+    sleeping_agent_case();
 }
