@@ -33,7 +33,7 @@ fn vec_scalar_mul(s: [f32; NUM_NEIGHBOURS], y: f32) -> [f32; NUM_NEIGHBOURS] {
     s.map(|x| x * y)
 }
 
-fn vec_mul(s: [f32; NUM_NEIGHBOURS], y: [f32; NUM_NEIGHBOURS]) -> [f32; NUM_NEIGHBOURS] {
+fn vec_add(s: [f32; NUM_NEIGHBOURS], y: [f32; NUM_NEIGHBOURS]) -> [f32; NUM_NEIGHBOURS] {
     let mut out: [f32; NUM_NEIGHBOURS] = [0.; NUM_NEIGHBOURS];
     for i in 0..NUM_NEIGHBOURS {
         out[i] = s[i] + y[i];
@@ -161,7 +161,7 @@ fn positive_run(
         }
 
         let global_scores = new_s.map(|x| (1. - PRE_TRUST_WEIGHT) * x);
-        let current_s = vec_mul(pre_trusted_scores, global_scores);
+        let current_s = vec_add(pre_trusted_scores, global_scores);
 
         s = current_s;
     }
@@ -174,14 +174,13 @@ fn negative_run(
     domain: String,
     mut lt: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS],
     s: [f32; NUM_NEIGHBOURS],
-    pre_trust: [f32; NUM_NEIGHBOURS],
 ) -> [f32; NUM_NEIGHBOURS] {
     println!("");
     println!("{} - Distrust:", domain);
 
     validate_lt(lt);
     for i in 0..NUM_NEIGHBOURS {
-        lt[i] = normalise(lt[i], pre_trust);
+        lt[i] = normalise(lt[i], [0.; NUM_NEIGHBOURS]);
     }
 
     let mut new_s = [0.0; NUM_NEIGHBOURS];
@@ -217,7 +216,7 @@ fn functional_case() {
         [10., 0.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
     ];
 
-    negative_run("Software Security".to_string(), ld_ss, pre_trust, ss_s);
+    negative_run("Software Security".to_string(), ld_ss, ss_s);
 
     let lt_sd: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
         [0.0, 0.0, 1.0, 0.0, 0.0], // - Peer 0 opinions
@@ -237,7 +236,7 @@ fn functional_case() {
         [0.0, 0.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
     ];
 
-    negative_run("Software Development".to_string(), ld_sd, pre_trust, sd_s);
+    negative_run("Software Development".to_string(), ld_sd, sd_s);
 
     let snap1_trust: [f32; NUM_NEIGHBOURS] = [50., 0., 0., 50., 0.];
     let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 0., 0.];
@@ -274,7 +273,7 @@ fn sybil_case() {
         [0.0, 0.0, 0.0, 0.0, 0.0],    // = Peer 4 opinions
     ];
 
-    negative_run("Software Security".to_string(), ld_ss, pre_trust, ss_s);
+    negative_run("Software Security".to_string(), ld_ss, ss_s);
 
     let snap1_trust: [f32; NUM_NEIGHBOURS] = [50., 50., 50., 0., 0.];
     let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 50., 50.];
@@ -313,7 +312,7 @@ fn sleeping_agent_case() {
         [10.0, 10.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
     ];
 
-    negative_run("Software Security".to_string(), ld_ss, ss_s, pre_trust);
+    negative_run("Software Security".to_string(), ld_ss, ss_s);
 
     let snap1_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
     let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
