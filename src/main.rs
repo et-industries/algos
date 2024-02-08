@@ -313,7 +313,7 @@ fn sleeping_agent_case() {
         [10.0, 10.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
     ];
 
-    negative_run("Software Security".to_string(), ld_ss, pre_trust, ss_s);
+    negative_run("Software Security".to_string(), ld_ss, ss_s, pre_trust);
 
     let snap1_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
     let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
