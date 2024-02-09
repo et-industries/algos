@@ -89,16 +89,22 @@ fn calculate_snap_score_with_threshold(
     s: [f32; NUM_NEIGHBOURS],
     threshold: f32,
 ) -> (f32, f32, State) {
+    /* x: positive rating from peer to snap */
+    /* y: the peer's score */
     let num: f32 = st
         .iter()
         .zip(s)
         .map(|(x, y)| if *x == 50. { y } else { 0. })
         .sum();
+    // num: sum of positive peer scores who said yes
     let den: f32 = sd
         .iter()
         .zip(s)
         .map(|(x, y)| if *x == 50. { y } else { 0. })
         .sum();
+    // num: sum of positive peer scores who said no
+    println!("{s:?}");
+    println!("{num} + {den}");
     let snap_score: f32 = num / (num + den);
 
     let score = if snap_score.is_nan() { 0. } else { snap_score };
@@ -106,7 +112,7 @@ fn calculate_snap_score_with_threshold(
 
     let upper_threshold = 1. - threshold;
     let state = match (score, confidence) {
-        (s, c) if c <= threshold => State::Unverified,
+        (_, c) if c <= threshold => State::Unverified,
         (s, c) if c > threshold && s <= threshold => State::Reported,
         (s, c) if c > threshold && s > threshold && s <= upper_threshold => State::Contested,
         (s, c) if c > threshold && s > upper_threshold => State::Endorsed,
@@ -138,7 +144,7 @@ fn positive_run(
     mut lt: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS],
     pre_trust: [f32; NUM_NEIGHBOURS],
 ) -> [f32; NUM_NEIGHBOURS] {
-    println!("");
+    println!();
     println!("{} - Trust:", domain);
 
     validate_lt(lt);
@@ -175,7 +181,7 @@ fn negative_run(
     mut lt: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS],
     s: [f32; NUM_NEIGHBOURS],
 ) -> [f32; NUM_NEIGHBOURS] {
-    println!("");
+    println!();
     println!("{} - Distrust:", domain);
 
     validate_lt(lt);
@@ -247,7 +253,7 @@ fn functional_case() {
     let snap1_score = calculate_snap_score(snap1_trust, snap1_distrust, ss_s);
     let snap2_score = calculate_snap_score(snap2_trust, snap2_distrust, ss_s);
 
-    println!("");
+    println!();
     println!("snap1 score: {}", snap1_score);
     println!("snap2 score: {}", snap2_score);
 }
@@ -284,7 +290,7 @@ fn sybil_case() {
     let snap1_score = calculate_snap_score(snap1_trust, snap1_distrust, ss_s);
     let snap2_score = calculate_snap_score(snap2_trust, snap2_distrust, ss_s);
 
-    println!("");
+    println!();
     println!("snap1 score: {}", snap1_score);
     println!("snap2 score: {}", snap2_score);
 }
@@ -312,7 +318,17 @@ fn sleeping_agent_case() {
         [10.0, 10.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
     ];
 
-    negative_run("Software Security".to_string(), ld_ss, ss_s);
+    let ssd_s = negative_run("Software Security".to_string(), ld_ss, ss_s);
+    let ssa_s: [f32; NUM_NEIGHBOURS] = ss_s
+        .iter()
+        .zip(ssd_s)
+        .map(|(trust, distrust)| trust - distrust)
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+    println!();
+    println!("Adjusted");
+    println!("vec: [{}]", ssa_s.map(|v| format!("{:>9.4}", v)).join(", "));
 
     let snap1_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
     let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
@@ -321,11 +337,11 @@ fn sleeping_agent_case() {
     let snap2_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
 
     let (snap1_score, confidence1, state1) =
-        calculate_snap_score_with_threshold(snap1_trust, snap1_distrust, ss_s, snap_threshold);
+        calculate_snap_score_with_threshold(snap1_trust, snap1_distrust, ssa_s, snap_threshold);
     let (snap2_score, confidence2, state2) =
-        calculate_snap_score_with_threshold(snap2_trust, snap2_distrust, ss_s, snap_threshold);
+        calculate_snap_score_with_threshold(snap2_trust, snap2_distrust, ssa_s, snap_threshold);
 
-    println!("");
+    println!();
     println!("1st Round");
     println!(
         "snap1 score: {}, confidence: {}, state: {:?}",
@@ -339,15 +355,15 @@ fn sleeping_agent_case() {
     let snap1_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 0., 0.];
     let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
 
-    let snap2_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 50., 50.];
+    let snap2_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 50., 50.];
     let snap2_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 0., 0.];
 
     let (snap1_score, confidence1, state1) =
-        calculate_snap_score_with_threshold(snap1_trust, snap1_distrust, ss_s, snap_threshold);
+        calculate_snap_score_with_threshold(snap1_trust, snap1_distrust, ssa_s, snap_threshold);
     let (snap2_score, confidence2, state2) =
-        calculate_snap_score_with_threshold(snap2_trust, snap2_distrust, ss_s, snap_threshold);
+        calculate_snap_score_with_threshold(snap2_trust, snap2_distrust, ssa_s, snap_threshold);
 
-    println!("");
+    println!();
     println!("2nd Round");
     println!(
         "snap1 score: {}, confidence: {}, state: {:?}",
@@ -361,15 +377,16 @@ fn sleeping_agent_case() {
     let snap1_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 0., 0.];
     let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 50., 50.];
 
-    let snap2_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 50., 50.];
+    // TODO(ek): peer 2: what does he say?
+    let snap2_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 50., 50.];
     let snap2_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 0., 0.];
 
     let (snap1_score, confidence1, state1) =
-        calculate_snap_score_with_threshold(snap1_trust, snap1_distrust, ss_s, snap_threshold);
+        calculate_snap_score_with_threshold(snap1_trust, snap1_distrust, ssa_s, snap_threshold);
     let (snap2_score, confidence2, state2) =
-        calculate_snap_score_with_threshold(snap2_trust, snap2_distrust, ss_s, snap_threshold);
+        calculate_snap_score_with_threshold(snap2_trust, snap2_distrust, ssa_s, snap_threshold);
 
-    println!("");
+    println!();
     println!("3rd Round");
     println!(
         "snap1 score: {}, confidence: {}, state: {:?}",
