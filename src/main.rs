@@ -94,17 +94,33 @@ fn calculate_snap_score_with_threshold(
     let num: f32 = st
         .iter()
         .zip(s)
-        .map(|(x, y)| if *x == 50. { y } else { 0. })
+        .map(|(x, y)| {
+            if y < 0.0 {
+                return 0.0;
+            }
+            if *x == 50. {
+                y
+            } else {
+                0.
+            }
+        })
         .sum();
     // num: sum of positive peer scores who said yes
     let den: f32 = sd
         .iter()
         .zip(s)
-        .map(|(x, y)| if *x == 50. { y } else { 0. })
+        .map(|(x, y)| {
+            if y < 0.0 {
+                return 0.0;
+            }
+            if *x == 50. {
+                y
+            } else {
+                0.
+            }
+        })
         .sum();
     // num: sum of positive peer scores who said no
-    println!("{s:?}");
-    println!("{num} + {den}");
     let snap_score: f32 = num / (num + den);
 
     let score = if snap_score.is_nan() { 0. } else { snap_score };
@@ -201,6 +217,25 @@ fn negative_run(
     new_s
 }
 
+fn negative_adjustment(
+    s: [f32; NUM_NEIGHBOURS],
+    sd: [f32; NUM_NEIGHBOURS],
+) -> [f32; NUM_NEIGHBOURS] {
+    let mut adjusted = [0.0f32; NUM_NEIGHBOURS];
+    for i in 0..NUM_NEIGHBOURS {
+        adjusted[i] = s[i] - sd[i];
+    }
+
+    println!();
+    println!("Adjusted");
+    println!(
+        "adjusted: [{}]",
+        adjusted.map(|v| format!("{:>9.4}", v)).join(", ")
+    );
+
+    adjusted
+}
+
 fn functional_case() {
     let pre_trust: [f32; NUM_NEIGHBOURS] = [0.0, 0.0, 0.0, 0.7, 0.3];
 
@@ -254,8 +289,8 @@ fn functional_case() {
     let snap2_score = calculate_snap_score(snap2_trust, snap2_distrust, ss_s);
 
     println!();
-    println!("snap1 score: {}", snap1_score);
-    println!("snap2 score: {}", snap2_score);
+    println!("snap1(malicious) score: {}", snap1_score);
+    println!("snap2(secure) score: {}", snap2_score);
 }
 
 fn sybil_case() {
@@ -291,8 +326,8 @@ fn sybil_case() {
     let snap2_score = calculate_snap_score(snap2_trust, snap2_distrust, ss_s);
 
     println!();
-    println!("snap1 score: {}", snap1_score);
-    println!("snap2 score: {}", snap2_score);
+    println!("snap1(malicious) score: {}", snap1_score);
+    println!("snap2(secure) score: {}", snap2_score);
 }
 
 fn sleeping_agent_case() {
@@ -319,16 +354,7 @@ fn sleeping_agent_case() {
     ];
 
     let ssd_s = negative_run("Software Security".to_string(), ld_ss, ss_s);
-    let ssa_s: [f32; NUM_NEIGHBOURS] = ss_s
-        .iter()
-        .zip(ssd_s)
-        .map(|(trust, distrust)| trust - distrust)
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
-    println!();
-    println!("Adjusted");
-    println!("vec: [{}]", ssa_s.map(|v| format!("{:>9.4}", v)).join(", "));
+    let ssa_s = negative_adjustment(ss_s, ssd_s);
 
     let snap1_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
     let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 0., 0.];
@@ -344,11 +370,11 @@ fn sleeping_agent_case() {
     println!();
     println!("1st Round");
     println!(
-        "snap1 score: {}, confidence: {}, state: {:?}",
+        "snap1(malicious) score: {}, confidence: {}, state: {:?}",
         snap1_score, confidence1, state1
     );
     println!(
-        "snap2 score: {}, confidence: {}, state: {:?}",
+        "snap2(secure) score: {}, confidence: {}, state: {:?}",
         snap2_score, confidence2, state2
     );
 
@@ -366,13 +392,34 @@ fn sleeping_agent_case() {
     println!();
     println!("2nd Round");
     println!(
-        "snap1 score: {}, confidence: {}, state: {:?}",
+        "snap1(malicious) score: {}, confidence: {}, state: {:?}",
         snap1_score, confidence1, state1
     );
     println!(
-        "snap2 score: {}, confidence: {}, state: {:?}",
+        "snap2(secure) score: {}, confidence: {}, state: {:?}",
         snap2_score, confidence2, state2
     );
+
+    let lt_ss: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
+        [0.0, 0.0, 0.0, 0.0, 0.0],  // - Peer 0 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0],  // - Peer 1 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0],  // - Peer 2 opinions
+        [0.0, 0.0, 0.0, 0.0, 10.0], // - Peer 3 opinions
+        [0.0, 0.0, 0.0, 10.0, 0.0], // = Peer 4 opinions
+    ];
+
+    let ss_s = positive_run("Software Security".to_string(), lt_ss, pre_trust);
+
+    let ld_ss: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
+        [0.0, 0.0, 0.0, 0.0, 0.0],    // - Peer 0 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0],    // - Peer 1 opinions
+        [0.0, 0.0, 0.0, 0.0, 0.0],    // - Peer 2 opinions
+        [10.0, 10.0, 10.0, 0.0, 0.0], // - Peer 3 opinions
+        [10.0, 10.0, 10.0, 0.0, 0.0], // = Peer 4 opinions
+    ];
+
+    let ssd_s = negative_run("Software Security".to_string(), ld_ss, ss_s);
+    let ssa_s = negative_adjustment(ss_s, ssd_s);
 
     let snap1_trust: [f32; NUM_NEIGHBOURS] = [0., 0., 50., 0., 0.];
     let snap1_distrust: [f32; NUM_NEIGHBOURS] = [0., 0., 0., 50., 50.];
@@ -389,11 +436,11 @@ fn sleeping_agent_case() {
     println!();
     println!("3rd Round");
     println!(
-        "snap1 score: {}, confidence: {}, state: {:?}",
+        "snap1(malicious) score: {}, confidence: {}, state: {:?}",
         snap1_score, confidence1, state1
     );
     println!(
-        "snap2 score: {}, confidence: {}, state: {:?}",
+        "snap2(secure) score: {}, confidence: {}, state: {:?}",
         snap2_score, confidence2, state2
     );
 }
