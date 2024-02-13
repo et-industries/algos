@@ -18,6 +18,20 @@ fn validate_lt(lt: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS]) {
     }
 }
 
+fn validate_lt_overlap(
+    lt: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS],
+    ld: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS],
+) {
+    // Compute sum of incoming distrust
+    for i in 0..NUM_NEIGHBOURS {
+        for j in 0..NUM_NEIGHBOURS {
+            let trust_zero = lt[i][j] == 0.0;
+            let distrust_zero = ld[i][j] == 0.0;
+            assert!(trust_zero || distrust_zero);
+        }
+    }
+}
+
 fn normalise(
     lt_vec: [f32; NUM_NEIGHBOURS],
     pre_trust: [f32; NUM_NEIGHBOURS],
@@ -255,6 +269,7 @@ fn functional_case() {
         [0.0, 1.0, 0.0, 0.0, 0.0], // - Peer 3 opinions
         [10., 0.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
     ];
+    validate_lt_overlap(lt_ss, ld_ss);
     let lt_sd: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
         [0.0, 0.0, 1.0, 0.0, 0.0], // - Peer 0 opinions
         [0.0, 0.0, 0.0, 0.0, 0.0], // - Peer 1 opinions
@@ -269,10 +284,12 @@ fn functional_case() {
         [0.0, 1.0, 0.0, 0.0, 0.0], // - Peer 3 opinions
         [0.0, 0.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
     ];
+    validate_lt_overlap(lt_sd, ld_sd);
 
     let ss_s = positive_run("Software Security".to_string(), lt_ss, pre_trust);
     let ss_ds = negative_run("Software Security".to_string(), ld_ss, ss_s);
     let ss_final = negative_adjustment(ss_s, ss_ds);
+
     let sd_s = positive_run("Software Development".to_string(), lt_sd, pre_trust);
     let sd_ds = negative_run("Software Development".to_string(), ld_sd, sd_s);
     let _sd_final = negative_adjustment(sd_s, sd_ds);
@@ -318,6 +335,7 @@ fn sybil_case() {
         [10.0, 10.0, 10.0, 0.0, 0.0], // - Peer 3 opinions
         [0.0, 0.0, 0.0, 0.0, 0.0],    // = Peer 4 opinions
     ];
+    validate_lt_overlap(lt_ss, ld_ss);
 
     let ss_s = positive_run("Software Security".to_string(), lt_ss, pre_trust);
     let ss_ds = negative_run("Software Security".to_string(), ld_ss, ss_s);
@@ -357,9 +375,6 @@ fn sleeping_agent_case() {
         [0.0, 0.0, 10.0, 0.0, 10.0], // - Peer 3 opinions
         [0.0, 0.0, 10.0, 10.0, 0.0], // = Peer 4 opinions
     ];
-
-    let ss_s = positive_run("Software Security".to_string(), lt_ss, pre_trust);
-
     let ld_ss: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
         [0.0, 0.0, 0.0, 0.0, 0.0],   // - Peer 0 opinions
         [0.0, 0.0, 0.0, 0.0, 0.0],   // - Peer 1 opinions
@@ -367,7 +382,9 @@ fn sleeping_agent_case() {
         [10.0, 10.0, 0.0, 0.0, 0.0], // - Peer 3 opinions
         [10.0, 10.0, 0.0, 0.0, 0.0], // = Peer 4 opinions
     ];
+    validate_lt_overlap(lt_ss, ld_ss);
 
+    let ss_s = positive_run("Software Security".to_string(), lt_ss, pre_trust);
     let ssd_s = negative_run("Software Security".to_string(), ld_ss, ss_s);
     let ssa_s = negative_adjustment(ss_s, ssd_s);
 
@@ -422,9 +439,6 @@ fn sleeping_agent_case() {
         [0.0, 0.0, 0.0, 0.0, 10.0], // - Peer 3 opinions
         [0.0, 0.0, 0.0, 10.0, 0.0], // = Peer 4 opinions
     ];
-
-    let ss_s = positive_run("Software Security".to_string(), lt_ss, pre_trust);
-
     let ld_ss: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
         [0.0, 0.0, 0.0, 0.0, 0.0],    // - Peer 0 opinions
         [0.0, 0.0, 0.0, 0.0, 0.0],    // - Peer 1 opinions
@@ -432,7 +446,9 @@ fn sleeping_agent_case() {
         [10.0, 10.0, 10.0, 0.0, 0.0], // - Peer 3 opinions
         [10.0, 10.0, 10.0, 0.0, 0.0], // = Peer 4 opinions
     ];
+    validate_lt_overlap(lt_ss, ld_ss);
 
+    let ss_s = positive_run("Software Security".to_string(), lt_ss, pre_trust);
     let ssd_s = negative_run("Software Security".to_string(), ld_ss, ss_s);
     let ssa_s = negative_adjustment(ss_s, ssd_s);
 
@@ -461,5 +477,7 @@ fn sleeping_agent_case() {
 }
 
 fn main() {
+    functional_case();
     sybil_case();
+    sleeping_agent_case();
 }
