@@ -11,14 +11,14 @@ pub fn transpose<const N: usize>(
 }
 
 pub fn normalise<const N: usize>(
-    lt_vec: [f32; N],
-    pre_trust: [f32; N],
+    am_vec: [f32; N],
+    seed: [f32; N],
 ) -> [f32; N] {
-    let sum: f32 = lt_vec.iter().sum();
+    let sum: f32 = am_vec.iter().sum();
     if sum == 0. {
-        return pre_trust;
+        return seed;
     }
-    lt_vec.map(|x| x / sum)
+    am_vec.map(|x| x / sum)
 }
 
 pub fn normalise_sqrt<const N: usize>(
@@ -31,11 +31,11 @@ pub fn normalise_sqrt<const N: usize>(
     vector.map(|x| x / sum.sqrt())
 }
 
-fn vec_scalar_mul<const N: usize>(s: [f32; N], y: f32) -> [f32; N] {
+pub fn vec_scalar_mul<const N: usize>(s: [f32; N], y: f32) -> [f32; N] {
     s.map(|x| x * y)
 }
 
-fn vec_add<const N: usize>(s: [f32; N], y: [f32; N]) -> [f32; N] {
+pub fn vec_add<const N: usize>(s: [f32; N], y: [f32; N]) -> [f32; N] {
     let mut out: [f32; N] = [0.; N];
     for i in 0..N {
         out[i] = s[i] + y[i];
