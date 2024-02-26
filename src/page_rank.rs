@@ -2,7 +2,7 @@ use crate::utils::{normalise, vec_add};
 
 const NUM_NEIGHBOURS: usize = 5;
 const NUM_ITER: usize = 50;
-const DAMPENING_AMOUNT: f32 = 0.8;
+const DAMPENING_AMOUNT: f32 = 0.2;
 
 fn run(
     mut am: [[f32; NUM_NEIGHBOURS]; NUM_NEIGHBOURS],
