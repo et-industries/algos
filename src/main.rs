@@ -1,8 +1,9 @@
-mod page_rank;
 mod eigen_trust;
+mod gnn;
 mod hubs_and_auth;
+mod page_rank;
 mod utils;
 
 fn main() {
-    page_rank::run_job();
+    gnn::run_job();
 }
