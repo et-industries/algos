@@ -7,7 +7,7 @@ const NUM_NEIGHBOURS: usize = 5;
 
 fn forward_run<'a, const NUM_ITER: usize>(
     tp: &'a Tape<f32, ScalarOps>,
-    weights: &[[Var<'a, f32, ScalarOps>; NUM_NEIGHBOURS]; NUM_NEIGHBOURS],
+    weights: &[[Option<Var<'a, f32, ScalarOps>>; NUM_NEIGHBOURS]; NUM_NEIGHBOURS],
     biases: &[Var<'a, f32, ScalarOps>; NUM_NEIGHBOURS],
     seed: [Var<'a, f32, ScalarOps>; NUM_NEIGHBOURS],
 ) -> [Var<'a, f32, ScalarOps>; NUM_NEIGHBOURS] {
@@ -18,7 +18,9 @@ fn forward_run<'a, const NUM_ITER: usize>(
     for i in 0..NUM_NEIGHBOURS {
         let mut sum = tp.var(0.0);
         for j in 0..NUM_NEIGHBOURS {
-            sum = &sum + &weights[i][j];
+            if let Some(w) = &weights[i][j] {
+                sum = &sum + w;
+            }
         }
 
         sums[i] = sum;
@@ -31,21 +33,23 @@ fn forward_run<'a, const NUM_ITER: usize>(
         for i in 0..NUM_NEIGHBOURS {
             // Aggregate - agg = (w_ji/W_j) * x_j
             for j in 0..NUM_NEIGHBOURS {
-                new_s[i] += &(&weights[j][i] * &sums[j].powf(&tp.var(-1.0))) * &s[j];
+                if let Some(w) = &weights[i][j] {
+                    new_s[i] += &(w * &sums[j].powf(&tp.var(-1.0))) * &s[j];
+                }
             }
             // Update - x_i' = b_i * x_i + agg
             new_s[i] = (&(&biases[i] * &s[i]) + &new_s[i]).tanh();
         }
 
         s = new_s;
+        println!(
+            "end: [{}]",
+            s.iter()
+                .map(|v| format!("{:>9.4}", v.data.clone()))
+                .collect::<String>()
+        );
     }
 
-    println!(
-        "end: [{}]",
-        s.iter()
-            .map(|v| format!("{:>9.4}", v.data.clone()))
-            .collect::<String>()
-    );
     println!("sum: {}", s.iter().map(|x| x.data).sum::<f32>());
 
     s
@@ -53,25 +57,45 @@ fn forward_run<'a, const NUM_ITER: usize>(
 
 pub fn run_job() {
     let tp = Tape::<f32, ScalarOps>::new();
+
+    let mut rng = thread_rng();
     // Initial weights
-    let mut weights: [[Var<f32, ScalarOps>; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
+    let mut weights: [[Option<Var<f32, ScalarOps>>; NUM_NEIGHBOURS]; NUM_NEIGHBOURS] = [
         [
-            tp.var(0.),
-            tp.var(0.),
-            tp.var(0.1),
-            tp.var(0.4),
-            tp.var(0.1),
+            None,
+            None,
+            Some(tp.var(rng.gen_range(0.0..1.0))),
+            Some(tp.var(rng.gen_range(0.0..1.0))),
+            Some(tp.var(rng.gen_range(0.0..1.0))),
         ],
-        [tp.var(0.), tp.var(0.), tp.var(0.), tp.var(0.4), tp.var(0.)],
         [
-            tp.var(0.6),
-            tp.var(0.),
-            tp.var(0.),
-            tp.var(0.6),
-            tp.var(0.3),
+            None,
+            None,
+            None,
+            Some(tp.var(rng.gen_range(0.0..1.0))),
+            None,
         ],
-        [tp.var(0.), tp.var(0.), tp.var(0.), tp.var(0.), tp.var(0.8)],
-        [tp.var(0.), tp.var(0.2), tp.var(0.9), tp.var(0.), tp.var(0.)],
+        [
+            Some(tp.var(rng.gen_range(0.0..1.0))),
+            None,
+            None,
+            Some(tp.var(rng.gen_range(0.0..1.0))),
+            Some(tp.var(rng.gen_range(0.0..1.0))),
+        ],
+        [
+            None,
+            None,
+            None,
+            None,
+            Some(tp.var(rng.gen_range(0.0..1.0))),
+        ],
+        [
+            None,
+            Some(tp.var(rng.gen_range(0.0..1.0))),
+            Some(tp.var(rng.gen_range(0.0..1.0))),
+            None,
+            None,
+        ],
     ];
     // Initial biases
     let mut biases = [tp.var(0.), tp.var(0.), tp.var(0.), tp.var(0.1), tp.var(0.5)];
@@ -94,7 +118,7 @@ pub fn run_job() {
             tp.var(rng.gen_range(0.0..1.0)),
         ];
         // Do the message passing
-        let res = forward_run::<10>(&tp, &weights, &biases, seed);
+        let res = forward_run::<20>(&tp, &weights, &biases, seed);
 
         // Calculate the error - only the labeled nodes are involved
         let mut error = tp.var(0.0);
@@ -113,7 +137,9 @@ pub fn run_job() {
         // Update weights and bisases based on the error
         for i in 0..NUM_NEIGHBOURS {
             for j in 0..NUM_NEIGHBOURS {
-                weights[i][j] = tp.var(weights[i][j].data - weights[i][j].grad() * lr);
+                if let Some(w) = &weights[i][j] {
+                    weights[i][j] = Some(tp.var(w.data - w.grad() * lr));
+                }
             }
             biases[i] = tp.var(biases[i].data - biases[i].grad() * lr);
         }
