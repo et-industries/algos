@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 rustydiff = { git = "https://github.com/Janko-dev/rustydiff" }
 rand = "0.8.5"
+priority-queue = "2.1.1"

@@ -2,8 +2,9 @@ mod eigen_trust;
 mod gnn;
 mod hubs_and_auth;
 mod page_rank;
+mod transitive_trust;
 mod utils;
 
 fn main() {
-    gnn::run_job();
+    transitive_trust::run_job();
 }

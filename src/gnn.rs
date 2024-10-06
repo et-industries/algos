@@ -9,9 +9,12 @@ fn forward_run<'a, const NUM_ITER: usize>(
     tp: &'a Tape<f32, ScalarOps>,
     weights: &[[Option<Var<'a, f32, ScalarOps>>; NUM_NEIGHBOURS]; NUM_NEIGHBOURS],
     biases: &[Var<'a, f32, ScalarOps>; NUM_NEIGHBOURS],
-    seed: [Var<'a, f32, ScalarOps>; NUM_NEIGHBOURS],
+    seed: &[Var<'a, f32, ScalarOps>; NUM_NEIGHBOURS],
 ) -> [Var<'a, f32, ScalarOps>; NUM_NEIGHBOURS] {
-    let mut s: [Var<f32, ScalarOps>; NUM_NEIGHBOURS] = seed;
+    let mut s: [Var<f32, ScalarOps>; NUM_NEIGHBOURS] = from_fn(|_| tp.var(0.));
+    for i in 0..seed.len() {
+        s[i] = tp.var(seed[i].data);
+    }
 
     for _ in 0..NUM_ITER {
         let mut new_s = from_fn(|_| tp.var(0.));
@@ -43,6 +46,15 @@ pub fn run_job() {
     let labels = vec![(0, tp.var(0.0)), (3, tp.var(0.2)), (4, tp.var(0.3))];
 
     let mut err = 100.0;
+
+    // Starting with random seed values at each training run
+    let seed = [
+        tp.var(rng.gen_range(0.0..1.0)),
+        tp.var(rng.gen_range(0.0..1.0)),
+        tp.var(rng.gen_range(0.0..1.0)),
+        tp.var(rng.gen_range(0.0..1.0)),
+        tp.var(rng.gen_range(0.0..1.0)),
+    ];
 
     for _ in 0..100 {
         // Initial weights
@@ -84,25 +96,15 @@ pub fn run_job() {
             ],
         ];
         // Initial biases
-        let biases = [tp.var(0.), tp.var(0.), tp.var(0.), tp.var(0.1), tp.var(0.1)];
+        let mut biases = [tp.var(0.), tp.var(0.), tp.var(0.), tp.var(0.1), tp.var(0.1)];
         // Learning rate starting value
         let mut lr = 0.01;
 
         // ------------------------------------------------------------------
 
-        let mut rng = thread_rng();
-
         for i in 0..100 {
-            // Starting with random seed values at each training run
-            let seed = [
-                tp.var(rng.gen_range(0.0..1.0)),
-                tp.var(rng.gen_range(0.0..1.0)),
-                tp.var(rng.gen_range(0.0..1.0)),
-                tp.var(rng.gen_range(0.0..1.0)),
-                tp.var(rng.gen_range(0.0..1.0)),
-            ];
             // Do the message passing
-            let res = forward_run::<20>(&tp, &weights, &biases, seed);
+            let res = forward_run::<20>(&tp, &weights, &biases, &seed);
 
             // Calculate the error - only the labeled nodes are involved
             let mut error = tp.var(0.0);
@@ -145,7 +147,7 @@ pub fn run_job() {
                         weights[i][j] = Some(tp.var(w.data - w.grad() * lr));
                     }
                 }
-                // biases[i] = tp.var(biases[i].data - biases[i].grad() * lr);
+                biases[i] = tp.var(biases[i].data - biases[i].grad() * lr);
             }
 
             // Decay learning rate at each step
